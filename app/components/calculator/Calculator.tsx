@@ -11,20 +11,30 @@ import { CalcResult } from "./types/CalcResult";
 import { fetchHistory } from "@/app/lib/moex/fetchHistory";
 import { calculateReturn } from "@/app/lib/moex/calculateReturn";
 import { Toast } from "./ui/Toast";
+import { PortfolioValueChart } from "./PortfolioValueChart";
 
 export function Calculator() {
     const [ticker, setTicker] = useState<string>("");
+
     const [buyDate, setBuyDate] = useState<string>("");
     const [sellDate, setSellDate] = useState<string>("");
-    const [amount, setAmount] = useState<number>(10000);
+
+    const [amount, setAmount] = useState<number>(100000);
+
+    // 🔥 Добавлено
+    const [contributionAmount, setContributionAmount] = useState<number>(10000);
+    const [contributionPeriod, setContributionPeriod] =
+        useState<"monthly" | "quarterly" | "yearly">("monthly");
+
     const [result, setResult] = useState<CalcResult | null>(null);
     const [toast, setToast] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
 
     const showError = (msg: string) => setToast(msg);
 
-    // ==============================
-    // 🗓 Проставляем даты автоматически
-    // ==============================
+    // ============================
+    // 📅 Автоматическая проставка дат
+    // ============================
     useEffect(() => {
         const now = new Date();
         const sell = new Date(now);
@@ -38,36 +48,54 @@ export function Calculator() {
         setBuyDate(iso(buy));
     }, []);
 
-    // ==============================
-    // 📈 Расчёт доходности
-    // ==============================
+    // ============================
+    // 🔢 Расчёт
+    // ============================
     const handleCalculate = async () => {
         if (!ticker || !buyDate || !sellDate) {
             showError("Выберите инструмент и укажите даты");
             return;
         }
 
-        const candles = await fetchHistory(ticker, buyDate, sellDate);
+        setLoading(true);
+        setResult(null);
 
-        if (!candles || candles.length === 0) {
-            showError("Данные за выбранный период отсутствуют");
-            return;
+        try {
+            const candles = await fetchHistory(ticker, buyDate, sellDate);
+
+            if (!candles || candles.length === 0) {
+                showError("Данные за выбранный период отсутствуют");
+                setLoading(false);
+                return;
+            }
+
+            const resultData = calculateReturn(
+                ticker,
+                buyDate,
+                sellDate,
+                amount,
+
+                // 🔥 Передаём взносы
+                {
+                    contributionAmount,
+                    contributionPeriod
+                },
+
+                candles
+            );
+
+            setResult(resultData);
+        } catch (e) {
+            console.error(e);
+            showError("Ошибка получения данных с МосБиржи");
         }
 
-        const resultData = calculateReturn(
-            ticker,
-            buyDate,
-            sellDate,
-            amount,
-            candles
-        );
-
-        setResult(resultData);
+        setLoading(false);
     };
 
-    // ==============================
+    // ============================
     // UI
-    // ==============================
+    // ============================
     return (
         <div className="relative max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-sm border border-gray-200">
 
@@ -97,38 +125,65 @@ export function Calculator() {
                     onChange={setBuyDate}
                 />
                 <DateSelector
-                    label="Дата продажи"
+                    label="Дата реализации"
                     value={sellDate}
                     onChange={setSellDate}
                 />
             </div>
 
-            {/* Сумма */}
+            {/* Ввод сумм + регулярные взносы */}
             <div className="mb-6">
-                <Inputs amount={amount} onChangeAmount={setAmount} />
+                <Inputs
+                    amount={amount}
+                    contributionAmount={contributionAmount}
+                    contributionPeriod={contributionPeriod}
+                    onChangeAmount={setAmount}
+                    onChangeContributionAmount={setContributionAmount}
+                    onChangeContributionPeriod={setContributionPeriod}
+                />
             </div>
 
             <button
                 onClick={handleCalculate}
-                className="w-full bg-[#E31E24] hover:bg-red-700 text-white py-3 rounded-md transition font-medium"
+                className="
+        w-full 
+        bg-[#E31E24] 
+        hover:bg-red-700 
+        text-white 
+        py-3 
+        rounded-md 
+        transition 
+        font-medium 
+        cursor-pointer
+    "
             >
                 Рассчитать доходность
             </button>
 
-            {/* Результат */}
-            {result && (
+            {/* === LOADING === */}
+            {loading && (
+                <div className="mt-8 flex flex-col items-center justify-center py-10 text-gray-700">
+                    <div className="w-10 h-10 border-4 border-[#E31E24] border-t-transparent rounded-full animate-spin" />
+                    <p className="mt-4 text-sm">
+                        Пожалуйста, подождите… идет загрузка данных и расчет результатов
+                    </p>
+                </div>
+            )}
+
+            {/* === RESULT === */}
+            {!loading && result && (
                 <>
                     <div className="mt-6">
                         <Result data={result} />
                     </div>
 
-                    {/* === График === */}
                     <div className="mt-8">
                         <Chart
                             data={result.history}
                             buyDate={buyDate}
                             sellDate={sellDate}
                         />
+                        <PortfolioValueChart history={result.portfolioHistory} />
                     </div>
                 </>
             )}

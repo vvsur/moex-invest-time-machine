@@ -24,7 +24,7 @@ interface ChartProps {
 }
 
 // ===============================
-// ⭐ Компонент BUY/SELL точек
+// ⭐ BUY/SELL точки
 // ===============================
 function CustomPoints(props: any) {
     const { formatted, buyDate, sellDate } = props;
@@ -38,9 +38,9 @@ function CustomPoints(props: any) {
 
     const out: React.ReactNode[] = [];
 
-    // BUY point
+    // BUY
     if (buyDate) {
-        const item = formatted.find((x: { date: any; }) => x.date === buyDate);
+        const item = formatted.find((x: any) => x.date === buyDate);
         if (item) {
             out.push(
                 <circle
@@ -56,9 +56,9 @@ function CustomPoints(props: any) {
         }
     }
 
-    // SELL point
+    // SELL
     if (sellDate) {
-        const item = formatted.find((x: { date: any; }) => x.date === sellDate);
+        const item = formatted.find((x: any) => x.date === sellDate);
         if (item) {
             out.push(
                 <circle
@@ -95,6 +95,9 @@ export function Chart({ data, buyDate, sellDate }: ChartProps) {
         ? "rgba(10, 123, 10, 0.25)"
         : "rgba(227, 30, 36, 0.25)";
 
+    // 🔥 Авто-отключение dot если слишком много точек
+    const tooManyPoints = formatted.length > 250;
+
     return (
         <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h2 className="text-lg font-semibold mb-3 text-gray-900">
@@ -120,12 +123,16 @@ export function Chart({ data, buyDate, sellDate }: ChartProps) {
                             stroke={strokeColor}
                             strokeWidth={2}
                             fill={fillColor}
-                            dot={{
-                                r: 3,
-                                stroke: strokeColor,
-                                strokeWidth: 1,
-                                fill: "#ffffff"
-                            }}
+                            // dot={
+                            //     tooManyPoints
+                            //         ? false
+                            //         : {
+                            //             r: 2,
+                            //             stroke: strokeColor,
+                            //             strokeWidth: 1,
+                            //             fill: "#ffffff"
+                            //         }
+                            // }
                         />
 
                         {sellDate && (

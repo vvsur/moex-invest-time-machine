@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+/* -------------------------------------
+   🔥 Анимация placeholder (Tailwind-safe)
+-------------------------------------- */
+@layer utilities {
+  @keyframes placeholder-pulse {
+    0% {
+      color: #9ca3af;
+    }
+
+    50% {
+      color: #e31e24;
+    }
+
+    100% {
+      color: #9ca3af;
+    }
+  }
+
+  .placeholder-animate-gradient {
+    &::placeholder {
+      animation: placeholder-pulse 2s ease-in-out infinite;
+      color: #9ca3af;
+      /* стартовое значение */
+    }
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
