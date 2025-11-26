@@ -26,7 +26,9 @@ export function TickerSelector({ value, onChange }: TickerSelectorProps) {
         }
         try {
             const url = `https://iss.moex.com/iss/securities.json?q=${encodeURIComponent(q)}&iss.meta=off`;
+            // console.log("📡 FETCH:", url);
             const res = await fetch(url);
+            // console.log("📥 Status:", res.status);
             const json = await res.json();
 
             const rows = json.securities?.data ?? [];
@@ -48,13 +50,19 @@ export function TickerSelector({ value, onChange }: TickerSelectorProps) {
                 })
                 .filter(Boolean) as Security[];
 
+            // console.log("✅ Suggestions:", normalized.slice(0, 10));
             setSuggestions(normalized);
-        } catch (e) { }
+        } catch (e) {
+            // console.error("❌ Ошибка fetchSuggestions:", e);
+        }
     };
 
     useEffect(() => {
+        // debounce input
         if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(() => fetchSuggestions(query), 300);
+        timerRef.current = setTimeout(() => {
+            fetchSuggestions(query);
+        }, 300);
 
         return () => {
             if (timerRef.current) clearTimeout(timerRef.current);
@@ -72,8 +80,6 @@ export function TickerSelector({ value, onChange }: TickerSelectorProps) {
             <label className="block text-sm font-medium text-gray-700 mb-1">
                 Инструмент (тикер)
             </label>
-
-            {/* 🔥 Анимированный placeholder */}
             <input
                 value={query}
                 onChange={(e) => {
@@ -81,13 +87,8 @@ export function TickerSelector({ value, onChange }: TickerSelectorProps) {
                     setOpen(true);
                 }}
                 placeholder="Например: SBER, GAZP, IMOEX..."
-                className="
-     w-full px-4 py-2 border border-gray-300 rounded-md
-     focus:outline-none focus:ring-2 focus:ring-[#E31E24]
-     placeholder-animate-gradient
-  "
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E31E24]"
             />
-
             {open && suggestions.length > 0 && (
                 <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-auto">
                     {suggestions.slice(0, 20).map((sec) => (
