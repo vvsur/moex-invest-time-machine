@@ -25,7 +25,7 @@ export function Calculator() {
     // 🔥 Добавлено
     const [contributionAmount, setContributionAmount] = useState<number>(10000);
     const [contributionPeriod, setContributionPeriod] =
-        useState<"monthly" | "quarterly" | "yearly">("monthly");
+        useState<"none" | "monthly" | "quarterly" | "yearly">("monthly");
 
     const [result, setResult] = useState<CalcResult | null>(null);
     const [toast, setToast] = useState<string | null>(null);
@@ -126,7 +126,7 @@ export function Calculator() {
                     onChange={setBuyDate}
                 />
                 <DateSelector
-                    label="Дата реализации"
+                    label="Дата продажи"
                     value={sellDate}
                     onChange={setSellDate}
                 />

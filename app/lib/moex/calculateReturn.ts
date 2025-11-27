@@ -53,7 +53,7 @@ export function calculateReturn(
         contributionPeriod
     }: {
         contributionAmount: number;
-        contributionPeriod: "monthly" | "quarterly" | "yearly";
+        contributionPeriod: "none" | "monthly" | "quarterly" | "yearly";
     },
     candles: Candle[]
 ): CalcResult {
