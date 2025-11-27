@@ -12,6 +12,7 @@ import { fetchHistory } from "@/app/lib/moex/fetchHistory";
 import { calculateReturn } from "@/app/lib/moex/calculateReturn";
 import { Toast } from "./ui/Toast";
 import { PortfolioValueChart } from "./PortfolioValueChart";
+import { TransactionsTable } from "./TransactionsTable";
 
 export function Calculator() {
     const [ticker, setTicker] = useState<string>("");
@@ -184,6 +185,9 @@ export function Calculator() {
                             sellDate={sellDate}
                         />
                         <PortfolioValueChart history={result.portfolioHistory} />
+
+                        {/* 🔥 ВСТАВЛЯЕМ ТАБЛИЦУ ТРАНЗАКЦИЙ */}
+                        <TransactionsTable transactions={result.transactions} />
                     </div>
                 </>
             )}
