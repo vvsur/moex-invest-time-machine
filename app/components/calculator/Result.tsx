@@ -110,7 +110,7 @@ function InvestmentSummary({ data }: { data: CalcResult }) {
       <h3 className="font-semibold text-gray-900 mb-2 text-lg">
         Что говорят цифры
       </h3>
-      <p className="text-gray-700 leading-relaxed">{conclusion}</p>
+      <p className="text-gray-700 leading-relaxed">ПРИМЕР: {conclusion}</p>
     </div>
   );
 }
