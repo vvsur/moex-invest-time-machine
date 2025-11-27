@@ -1,5 +1,9 @@
 import { Candle } from "@/app/components/calculator/types/Candle";
-import { CalcResult, CalcTransaction, PortfolioPoint } from "@/app/components/calculator/types/CalcResult";
+import {
+    CalcResult,
+    CalcTransaction,
+    PortfolioPoint,
+} from "@/app/components/calculator/types/CalcResult";
 import { findNearestTradingDate } from "@/app/lib/moex/findNearestTradingDate";
 
 /**
@@ -39,7 +43,6 @@ function xirr(cashflows: { date: Date; amount: number }[], guess = 0.1): number 
     return rate;
 }
 
-
 /**
  * Главный расчёт доходности
  */
@@ -50,14 +53,13 @@ export function calculateReturn(
     amount: number,
     {
         contributionAmount,
-        contributionPeriod
+        contributionPeriod,
     }: {
         contributionAmount: number;
         contributionPeriod: "none" | "monthly" | "quarterly" | "yearly";
     },
-    candles: Candle[]
+    candles: Candle[],
 ): CalcResult {
-
     if (candles.length === 0) {
         throw new Error("Нет данных по истории цены");
     }
@@ -66,27 +68,28 @@ export function calculateReturn(
     const realBuyDate = findNearestTradingDate(candles, buyDate);
     const realSellDate = findNearestTradingDate(candles, sellDate);
 
-    const buyC = candles.find(c => c.date === realBuyDate)!;
-    const sellC = candles.find(c => c.date === realSellDate)!;
+    const buyC = candles.find((c) => c.date === realBuyDate)!;
+    const sellC = candles.find((c) => c.date === realSellDate)!;
 
     const buyPrice = buyC.close;
     const sellPrice = sellC.close;
 
-    // === Лог покупок
+    // === Лог всех покупок
     const transactions: CalcTransaction[] = [];
 
     let totalShares = amount / buyPrice;
     let totalInvested = amount;
 
+    // первая покупка
     transactions.push({
         date: realBuyDate,
         price: buyPrice,
-        amount: amount,
-        shares: totalShares
+        amount,
+        shares: totalShares,
     });
 
     // === Регулярные взносы
-    if (contributionAmount > 0) {
+    if (contributionPeriod !== "none" && contributionAmount > 0) {
         let cursor = new Date(realBuyDate);
         const end = new Date(realSellDate);
 
@@ -101,7 +104,7 @@ export function calculateReturn(
         while (cursor <= end) {
             const iso = cursor.toISOString().split("T")[0];
             const realDate = findNearestTradingDate(candles, iso);
-            const cndl = candles.find(c => c.date === realDate);
+            const cndl = candles.find((c) => c.date === realDate);
 
             if (cndl) {
                 const sharesBought = contributionAmount / cndl.close;
@@ -112,7 +115,7 @@ export function calculateReturn(
                     date: realDate,
                     price: cndl.close,
                     amount: contributionAmount,
-                    shares: sharesBought
+                    shares: sharesBought,
                 });
             }
 
@@ -120,24 +123,32 @@ export function calculateReturn(
         }
     }
 
-    // === Финальная стоимость
+    // === Итоговая стоимость
     const finalAmount = totalShares * sellPrice;
     const profit = finalAmount - totalInvested;
     const profitPercent = (profit / totalInvested) * 100;
 
-    // === XIRR
+    // === XIRR: фикс → исключаем первую покупку из дубля
     const cashflows = [
-        { date: new Date(realBuyDate), amount: -amount },
-        ...transactions.map(t => ({
-            date: new Date(t.date),
-            amount: -t.amount
-        })),
-        { date: new Date(realSellDate), amount: finalAmount }
+        { date: new Date(realBuyDate), amount: -amount }, // первая покупка
+
+        // регулярные взносы (если есть)
+        ...transactions
+            .slice(1) // исключение первой покупки
+            .map((t) => ({
+                date: new Date(t.date),
+                amount: -t.amount,
+            })),
+
+        // финальная продажа
+        { date: new Date(realSellDate), amount: finalAmount },
     ];
 
     let irr: number | null = null;
     try {
-        irr = xirr(cashflows) * 100;
+        if (cashflows.length > 2) {
+            irr = xirr(cashflows) * 100;
+        }
     } catch { }
 
     // === CAGR
@@ -146,32 +157,24 @@ export function calculateReturn(
         (365 * 24 * 3600 * 1000);
 
     const cagr =
-        years > 0.5
-            ? (Math.pow(finalAmount / totalInvested, 1 / years) - 1) * 100
-            : null;
+        years > 0.5 ? (Math.pow(finalAmount / totalInvested, 1 / years) - 1) * 100 : null;
 
-
-    // === 📈 История стоимости портфеля
+    // === История портфеля
     let runningShares = 0;
-    let runningInvested = 0;
 
-    const portfolioHistory: PortfolioPoint[] = candles.map(c => {
-        // применяем все транзакции на эту дату
+    const portfolioHistory: PortfolioPoint[] = candles.map((c) => {
         transactions
-            .filter(t => t.date === c.date)
-            .forEach(t => {
+            .filter((t) => t.date === c.date)
+            .forEach((t) => {
                 runningShares += t.shares;
-                runningInvested += t.amount;
             });
 
         return {
             date: c.date,
-            value: runningShares * c.close
+            value: runningShares * c.close,
         };
     });
 
-
-    // === Возврат результата
     return {
         buyDate: realBuyDate,
         sellDate: realSellDate,
@@ -189,6 +192,6 @@ export function calculateReturn(
         history: candles,
 
         transactions,
-        portfolioHistory
+        portfolioHistory,
     };
 }
