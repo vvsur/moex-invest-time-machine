@@ -26,7 +26,7 @@ export function TickerSelector({ value, onChange }: TickerSelectorProps) {
         }
         try {
             const url = `https://iss.moex.com/iss/securities.json?q=${encodeURIComponent(q)}&iss.meta=off`;
-            // console.log("📡 FETCH:", url);
+            console.log("📡 FETCH:", url);
             const res = await fetch(url);
             // console.log("📥 Status:", res.status);
             const json = await res.json();

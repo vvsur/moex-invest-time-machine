@@ -1,13 +1,42 @@
 import { Candle } from "@/app/components/calculator/types/Candle";
 import { normalizeHistory } from "./normalizeHistory";
 
+/**
+ * Универсальная функция извлечения цены закрытия из разных форматов MOEX
+ */
+function extractClose(columns: string[], row: any[]): number | null {
+    const map = Object.fromEntries(columns.map((c, i) => [c, row[i]]));
+
+    return (
+        map.CLOSE ??
+        map.LEGALCLOSEPRICE ??
+        map.LASTPRICE ??
+        map.MARKETPRICE ??
+        map.MARKETPRICE2 ??
+        map.MARKETPRICE3 ??
+        map.WAPRICE ??
+        null
+    );
+}
+
+/**
+ * Универсальная функция извлечения даты из разных форматов MOEX
+ */
+function extractDate(columns: string[], row: any[]): string | null {
+    const map = Object.fromEntries(columns.map((c, i) => [c, row[i]]));
+
+    return (
+        map.TRADEDATE ??
+        map.TRADE_SESSION_DATE ??
+        null
+    );
+}
+
 export async function fetchHistory(
     ticker: string,
     from: string,
     to: string
 ): Promise<Candle[]> {
-
-    // console.log("📌 fetchHistory START", { ticker, from, to });
 
     const baseUrl =
         ticker === "IMOEX"
@@ -15,24 +44,29 @@ export async function fetchHistory(
             : `https://iss.moex.com/iss/history/engines/stock/markets/shares/boards/TQBR/securities/${ticker}.json`;
 
     let allRows: any[] = [];
+    let allColumns: string[] | null = null;
+
     let start = 0;
     let page = 1;
 
     while (true) {
         const url = `${baseUrl}?from=${from}&till=${to}&start=${start}`;
-        // console.log(`📡 Request page ${page}:`, url);
+        console.log(`📡 MOEX Page ${page}:`, url);
 
         const res = await fetch(url);
         const json = await res.json();
 
-        const history = json.history;
-        if (!history) break;
+        if (!json.history) break;
 
-        const rows = history.data || [];
-        // console.log(`📄 Page ${page}: rows=${rows.length}`);
+        // сохраняем колонки первой страницы
+        if (!allColumns) {
+            allColumns = json.history.columns;
+        }
 
+        const rows = json.history.data || [];
         allRows.push(...rows);
 
+        // пагинация
         const cursor = json["history.cursor"]?.data?.[0];
         if (!cursor) break;
 
@@ -41,26 +75,32 @@ export async function fetchHistory(
 
         start += pageSize;
         page++;
-        await new Promise((r) => setTimeout(r, 50));
+        await new Promise(r => setTimeout(r, 50));
     }
 
-    // console.log("📦 Total rows:", allRows.length);
+    if (!allColumns) {
+        console.warn("⚠ history.columns отсутствуют");
+        return [];
+    }
 
-    // ========= ДИНАМИЧЕСКИЕ ИНДЕКСЫ (корректные) =========
-    const isIndex = ticker === "IMOEX";
+    console.log("📊 MOEX format detected:", allColumns.slice(0, 10), "...");
 
-    const TRADEDATE_INDEX = isIndex ? 2 : 1;
-    const CLOSE_INDEX = isIndex ? 8 : 11;
+    // теперь полностью универсальный парсер
+    const normalizedRows = allRows
+        .map(row => {
+            const date = extractDate(allColumns!, row);
+            const close = extractClose(allColumns!, row);
 
-    // console.log("🔎 Using indexes:", { TRADEDATE_INDEX, CLOSE_INDEX });
+            if (!date || !close) return null;
+
+            return [date, close];
+        })
+        .filter(Boolean);
 
     return normalizeHistory({
         history: {
             columns: ["TRADEDATE", "CLOSE"],
-            data: allRows.map(row => [
-                row[TRADEDATE_INDEX],
-                row[CLOSE_INDEX]
-            ])
+            data: normalizedRows as [string, number][],
         }
     });
 }
